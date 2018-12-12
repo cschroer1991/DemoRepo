@@ -1,0 +1,6 @@
+*.r
+vssver.scc
+*.project
+*.dbconnection
+*.propath
+*.settings

@@ -1,0 +1,355 @@
+&ANALYZE-SUSPEND _VERSION-NUMBER AB_v10r12
+&ANALYZE-RESUME
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _CUSTOM _DEFINITIONS Procedure 
+/*------------------------------------------------------------------------
+    File        : 
+    Purpose     :
+
+    Syntax      :
+
+    Description :
+
+    Author(s)   :
+    Created     :
+    Notes       :
+  ----------------------------------------------------------------------*/
+/*          This .W file was created with the Progress AppBuilder.      */
+/*----------------------------------------------------------------------*/
+
+/* ***************************  Definitions  ************************** */
+define input parameter ipiOrderID as integer no-undo.
+
+/* _UIB-CODE-BLOCK-END */
+&ANALYZE-RESUME
+
+
+&ANALYZE-SUSPEND _UIB-PREPROCESSOR-BLOCK 
+
+/* ********************  Preprocessor Definitions  ******************** */
+
+&Scoped-define PROCEDURE-TYPE Procedure
+&Scoped-define DB-AWARE no
+
+
+
+/* _UIB-PREPROCESSOR-BLOCK-END */
+&ANALYZE-RESUME
+
+
+/* ************************  Function Prototypes ********************** */
+
+&IF DEFINED(EXCLUDE-getCOTime) = 0 &THEN
+
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _FUNCTION-FORWARD getCOTime Procedure 
+FUNCTION getCOTime RETURNS DECIMAL
+( input piLineID as integer,input piFromID as integer,input piToID as integer )  FORWARD.
+
+/* _UIB-CODE-BLOCK-END */
+&ANALYZE-RESUME
+
+&ENDIF
+
+&IF DEFINED(EXCLUDE-getUnwindMandrel) = 0 &THEN
+
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _FUNCTION-FORWARD getUnwindMandrel Procedure 
+FUNCTION getUnwindMandrel RETURNS INTEGER
+    (input piLineID as integer, input piID as decimal )  FORWARD.
+
+/* _UIB-CODE-BLOCK-END */
+&ANALYZE-RESUME
+
+&ENDIF
+
+
+/* *********************** Procedure Settings ************************ */
+
+&ANALYZE-SUSPEND _PROCEDURE-SETTINGS
+/* Settings for THIS-PROCEDURE
+   Type: Procedure
+   Allow: 
+   Frames: 0
+   Add Fields to: Neither
+   Other Settings: CODE-ONLY COMPILE
+ */
+&ANALYZE-RESUME _END-PROCEDURE-SETTINGS
+
+/* *************************  Create Window  ************************** */
+
+&ANALYZE-SUSPEND _CREATE-WINDOW
+/* DESIGN Window definition (used by the UIB) 
+  CREATE WINDOW Procedure ASSIGN
+         HEIGHT             = 15
+         WIDTH              = 60.
+/* END WINDOW DEFINITION */
+                                                                        */
+&ANALYZE-RESUME
+
+ 
+
+
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _CUSTOM _MAIN-BLOCK Procedure 
+
+
+/* ***************************  Main Block  *************************** */
+
+run updateProdSched.
+if return-value <> "":U
+    then return return-value.
+
+/* _UIB-CODE-BLOCK-END */
+&ANALYZE-RESUME
+
+
+/* **********************  Internal Procedures  *********************** */
+
+&IF DEFINED(EXCLUDE-getPickListMandrel) = 0 &THEN
+
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE getPickListMandrel Procedure 
+PROCEDURE getPickListMandrel :
+/*------------------------------------------------------------------------------
+  Purpose:     
+  Parameters:  <none>
+  Notes:       
+------------------------------------------------------------------------------*/
+define input  parameter piOrderID         as integer no-undo.
+define input  parameter ipiLineID         as integer no-undo.
+define output parameter opiOrderUWMandrel as integer.
+define output parameter oplMixed          as logical no-undo.
+
+define buffer bInv        for inv.
+define buffer bPickList   for picklist.
+
+def var iUnwindMandrel  as integer no-undo.
+
+assign 
+    oplMixed          = no
+    opiOrderUWMandrel = 0.
+
+for each bPickList no-lock
+    where bPickList.order-id = piOrderID:
+
+    find bInv no-lock
+        where bInv.inv-id eq bPickList.master-id no-error.
+    if available bInv then
+    do:
+        assign
+            iUnwindMandrel = dynamic-function('GetUnwindMandrel',ipiLineID, bInv.i-d).
+        if opiOrderUWMandrel eq 0 
+            then assign
+            opiOrderUWMandrel = iUnwindMandrel.
+        if opiOrderUWMandrel ne iUnwindMandrel 
+            then assign
+            oplMixed = yes.
+    end.
+    else 
+        assign
+            iUnwindMandrel = 0
+            oplMixed = yes.
+end.
+
+END PROCEDURE.
+
+/* _UIB-CODE-BLOCK-END */
+&ANALYZE-RESUME
+
+&ENDIF
+
+&IF DEFINED(EXCLUDE-updateProdSched) = 0 &THEN
+
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE updateProdSched Procedure 
+PROCEDURE updateProdSched :
+/*------------------------------------------------------------------------------
+  Purpose:     
+  Parameters:  <none>
+  Notes:       
+------------------------------------------------------------------------------*/
+define buffer bprodSched  for prod-sched.
+define buffer b2prodSched for prod-sched.
+define buffer bInv        for inv.
+define buffer bPickList   for picklist.
+define buffer bWorkItem   for work-item.
+
+def var iCoilCount         as integer init 0 no-undo.
+def var iNRCoils           as integer init 0 no-undo.
+def var lMixed             as logical no-undo.
+def var lPrevMixed         as logical no-undo.
+def var iPrevUnwindMandrel as integer no-undo.
+def var iOrderUWMandrel    as integer no-undo.
+
+assign 
+    lMixed          = no
+    iOrderUWMandrel = 0.
+
+find first bprodSched where
+    bprodSched.order-id = ipiOrderID 
+    exclusive-lock no-error.
+if not available prod-sched
+    then return "**Cannot find order " + string(ipiOrderID) + " in prod-sched table.".
+
+find work-order where
+    work-order.order-id = ipiOrderID
+    no-lock no-error.
+if not available work-order
+    then return "**Cannot find order " + string(ipiOrderID) + " in work-order table.".
+
+for each bWorkItem 
+    where bWorkItem.order-id = ipiOrderID no-lock,
+    each spec where spec.spec-id = bWorkItem.spec-id no-lock:
+
+    if spec.lube = 8 then
+        bprodSched.dry = true.
+    else
+        bprodSched.oil = spec.lube.
+
+    if spec.stencil <> ? and spec.stencil <> "0" and spec.stencil <> "" then
+        bprodSched.stencil = true.
+
+    assign
+        bprodSched.exit-id = spec.mandrel[1].
+
+    if spec.interleave > 0 then
+       bprodSched.interleave = spec.interleave.
+
+    if spec.level > 0 then
+        bprodSched.level = spec.level.
+
+    if spec.exposed <> 0 and spec.exposed <> 2 then 
+        bprodSched.exposed = spec.exposed. 
+
+end.
+
+for each bPickList no-lock
+    where bPickList.order-id = ipiOrderID:
+
+    if bPickList.master-id = 0 or bPickList.master-id = ? 
+        then iNRCoils = iNRCoils + 1.
+    else do:
+        find bInv where
+            bInv.inv-id = bPickList.master-id
+            no-lock no-error.
+        if available bInv and bInv.stat = 0 /* status = scheduled */
+            then iCoilCount = iCoilCount + 1.
+    end.
+    
+end.
+
+/* See if this order uses more than one mandrel */
+run getPickListMandrel(input ipiOrderID,input bprodSched.line-id,output iOrderUWMandrel, output lMixed).
+
+/* If this order uses more than one mandrel then
+   we don't care about the previous prod-sched since COTime can't
+   be calculated */
+if not lMixed then do: 
+    find b2prodSched where
+        b2prodSched.line-id = bprodSched.line-id and
+        b2prodSched.seq-no = bprodSched.seq-no
+        no-lock no-error.
+
+    find prev b2ProdSched no-lock no-error.
+    if available b2prodSched then do:
+
+        /* get the mandrel for the previous prod-sched order */
+        run getPickListMandrel(input b2prodSched.order-id,input b2prodSched.line-id, output iPrevUnwindMandrel, output lPrevMixed).
+
+        /* Once again if more than one mandrel we can't calculate COTime */
+        if lPrevMixed 
+            then lMixed = true.
+    end.
+    else lMixed = true. /* If we're first then we can't calculate COTime */
+end.
+
+assign
+    bProdSched.SchedWt  = work-order.schedule-wt
+    bprodSched.CoilCnt  = iCoilCount
+    bprodSched.NRcoils  = iNRCoils
+    bprodSched.est-time = dynamic-function('',ipiOrderID)
+    bprodSched.COTime   = (if not lMixed 
+                           then dynamic-function('GetCOTime',bprodSched.line-id,iPrevUnwindMandrel,iOrderUWMandrel)
+                           else ?)
+    .
+
+return.
+
+END PROCEDURE.
+
+/* _UIB-CODE-BLOCK-END */
+&ANALYZE-RESUME
+
+&ENDIF
+
+/* ************************  Function Implementations ***************** */
+
+&IF DEFINED(EXCLUDE-getCOTime) = 0 &THEN
+
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _FUNCTION getCOTime Procedure 
+FUNCTION getCOTime RETURNS DECIMAL
+( input piLineID as integer,input piFromID as integer,input piToID as integer ) :
+/*------------------------------------------------------------------------------
+Purpose:  
+  Notes:  
+------------------------------------------------------------------------------*/
+define buffer bMandrelMatrix for psi.MandrelMatrix.
+
+if piFromID eq piToID 
+    then return 0.0.
+
+find bMandrelMatrix no-lock
+    where bMandrelMatrix.Line-ID     eq piLineID 
+    and   bMandrelMatrix.FromEquipID eq piFromID
+    and   bMandrelMatrix.ToEquipID   eq piToID no-error.
+
+if available bMandrelMatrix 
+    then return bMandrelMatrix.COTime.
+else return ?.
+
+END FUNCTION.
+
+/* _UIB-CODE-BLOCK-END */
+&ANALYZE-RESUME
+
+&ENDIF
+
+&IF DEFINED(EXCLUDE-getUnwindMandrel) = 0 &THEN
+
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _FUNCTION getUnwindMandrel Procedure 
+FUNCTION getUnwindMandrel RETURNS INTEGER
+    (input piLineID as integer, input piID as decimal ) :
+/*------------------------------------------------------------------------------
+Purpose:  
+  Notes:  
+------------------------------------------------------------------------------*/
+define buffer bEquip     for psi.Equip. 
+define buffer bLineEquip for psi.LineEquip.
+
+def var iPlantID    as integer no-undo.
+def var iMandrelID  as integer no-undo.
+
+assign
+  iPlantID = integer(dynamic-function('GetGlobalVar','plantid')).
+
+for each bEquip no-lock
+  where bEquip.Plant-ID  eq iPlantID
+  and   bEquip.EquipType eq 1: /* Unwind mandrel */
+
+  if bEquip.mandrel ne piID 
+      then next.
+
+  if not can-find(bLineEquip no-lock
+      where bLineEquip.EquipID eq bEquip.EquipID
+      and   bLineEquip.Line-ID eq piLineID) 
+      then next.
+
+  assign
+      iMandrelID = bEquip.EquipID.
+
+end.
+
+return iMandrelID.   /* Function return value. */
+
+END FUNCTION.
+
+/* _UIB-CODE-BLOCK-END */
+&ANALYZE-RESUME
+
+&ENDIF
+
