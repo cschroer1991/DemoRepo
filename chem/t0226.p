@@ -2,7 +2,8 @@
 &ANALYZE-RESUME
 &ANALYZE-SUSPEND _UIB-CODE-BLOCK _CUSTOM _DEFINITIONS Procedure 
 /*------------------------------------------------------------------------
-    File        : TESTSTESTSETSET
+    File        : Curtis
+
     Purpose     :
 
     Syntax      :
@@ -20,16 +21,16 @@
 
 /* ***************************  Definitions  ************************** */
 
-DEF INPUT  PARAMETER pi-ChemTest AS INT     NO-UNDO.
-DEF INPUT  PARAMETER pi-chemId   AS INT     NO-UNDO.
-DEF INPUT  PARAMETER pi-side     AS INT     NO-UNDO.
-DEF OUTPUT PARAMETER cInvList    AS CHAR    NO-UNDO.
+def input  parameter pi-ChemTest as int     no-undo.
+def input  parameter pi-chemId   as int     no-undo.
+def input  parameter pi-side     as int     no-undo.
+def output parameter cInvList    as char    no-undo.
  
-DEF BUFFER b-rcpt FOR rcpt.
+def buffer b-rcpt for rcpt.
 
-DEF VARIABLE gc-msg             AS CHAR    NO-UNDO.
-DEF VARIABLE cRowList           AS CHAR    NO-UNDO.
-DEF VARIABLE p-msg              AS CHAR    NO-UNDO.
+def variable gc-msg             as char    no-undo.
+def variable cRowList           as char    no-undo.
+def variable p-msg              as char    no-undo.
 
 /* _UIB-CODE-BLOCK-END */
 &ANALYZE-RESUME
@@ -107,7 +108,7 @@ find inv where inv.inv-id = rcpt.rcpt-id no-lock no-error.
 find part where part.part-id = inv.part-id no-lock no-error.
 find partner where partner.partner-id = inv.partner-id no-lock no-error.
 
-IF NOT AVAILABLE partner THEN RETURN.
+if not available partner then return.
 
 /* message                                             */
 /*     "   partner.owner-id = " partner.owner-id  skip */
@@ -139,8 +140,8 @@ do:
      if chemMeas.exact-meas < t-limits.lo-limit or
         chemMeas.exact-meas > t-limits.up-lim then
      do:
-        RUN sendEmailMsg.
-        RUN setInvHold.
+        run sendEmailMsg.
+        run setInvHold.
      end.
    end. /* for each */
   end. /* if available */ 
@@ -157,8 +158,8 @@ do:
      if chemMeas.exact-meas < t-limits.lo-limit or
         chemMeas.exact-meas > t-limits.up-lim then
      do:
-        RUN sendEmailMsg.
-        RUN setInvHold.
+        run sendEmailMsg.
+        run setInvHold.
      end.
     end.  /* for each */
   end. /* else do */
@@ -173,7 +174,7 @@ end.
 &IF DEFINED(EXCLUDE-sendEmailMsg) = 0 &THEN
 
 &ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE sendEmailMsg Procedure 
-PROCEDURE sendEmailMsg :
+procedure sendEmailMsg :
 /*------------------------------------------------------------------------------
   Purpose:     
   Parameters:  <none>
@@ -189,16 +190,16 @@ PROCEDURE sendEmailMsg :
   cEmailGroup = "Chem" + {fnarg getGlobalVar 'PlantId'}.
   set-size(mMemPtr) = 0.
 
-  cChemMsg = DYNAMIC-FUNCTION('getFieldValue',
+  cChemMsg = dynamic-function('getFieldValue',
                         input 'chemCode',
                         input 'chemId',
                         input t-limits.chem-id,
                         input 'first',
                         input 'chemVal').
 
-  IF cChemMsg <> ? THEN
+  if cChemMsg <> ? then
     cChemMsg = "CHEM TYPE: " + cChemMsg + " ".
-  ELSE
+  else
     cChemMsg = "".
 
   cLoMsg = if t-limits.lo-limit <> ? then 
@@ -224,7 +225,7 @@ PROCEDURE sendEmailMsg :
              input cEmailGroup, /* group name */
              output lResult). /* Result */
 
-END PROCEDURE.
+end procedure.
 
 /* _UIB-CODE-BLOCK-END */
 &ANALYZE-RESUME
@@ -234,45 +235,45 @@ END PROCEDURE.
 &IF DEFINED(EXCLUDE-setInvHold) = 0 &THEN
 
 &ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE setInvHold Procedure 
-PROCEDURE setInvHold :
+procedure setInvHold :
 /*------------------------------------------------------------------------------
   Purpose:     
   Parameters:  <none>
   Notes:       
 ------------------------------------------------------------------------------*/
-  FOR EACH b-rcpt WHERE
+  for each b-rcpt where
            b-rcpt.heat-lot = chemMstr.heat-lot and
-           b-rcpt.mill-id = chemMstr.mill-id NO-LOCK,
-      EACH inv WHERE
-           inv.rcpt-id = b-rcpt.rcpt-id AND
-           inv.stat = 0 NO-LOCK:
+           b-rcpt.mill-id = chemMstr.mill-id no-lock,
+      each inv where
+           inv.rcpt-id = b-rcpt.rcpt-id and
+           inv.stat = 0 no-lock:
       
-      ASSIGN 
-         cRowList = cRowList + "," + string(ROWID(inv))
+      assign 
+         cRowList = cRowList + "," + string(rowid(inv))
          cInvList = cInvList + "~n" + STRING(inv.inv-id).
 
-  END.
-  cRowList = TRIM(cRowList,',').
-  cInvList = TRIM(cInvList,',').
+  end.
+  cRowList = trim(cRowList,',').
+  cInvList = trim(cInvList,',').
 
-  MESSAGE "In t0226.p in the SetInvHold Procedure" skip
+  message "In t0226.p in the SetInvHold Procedure" skip
       "gc-Msg = " gc-Msg skip
       "p-Msg = " p-Msg skip
       "cRowList = " cRowList skip
-      VIEW-AS ALERT-BOX INFORMATION BUTTONS OK.
+      view-as alert-box information buttons ok.
 
-  IF cRowList <> "" THEN
-    RUN inv/t0114.p (INPUT "hold",
-                     INPUT cRowList,
-                     INPUT 'inv',
-                     INPUT 26,
-                     INPUT gc-Msg,
-                     INPUT 0,
-                     INPUT 0,
-                     INPUT '',
-                     OUTPUT p-msg).
+  if cRowList <> "" then
+    run inv/t0114.p (input "hold",
+                     input cRowList,
+                     input 'inv',
+                     input 26,
+                     input gc-Msg,
+                     input 0,
+                     input 0,
+                     input '',
+                     output p-msg).
   
-END PROCEDURE.
+end procedure.
 
 /* _UIB-CODE-BLOCK-END */
 &ANALYZE-RESUME
