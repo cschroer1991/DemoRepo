@@ -5,7 +5,7 @@
     File        : chem/t0244.p
     Purpose     : server side tasks for chemistry data
 
-    Syntax      :
+    Syntax      : Hello it is cloudy
 
     Description :
 
