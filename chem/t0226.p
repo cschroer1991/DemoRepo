@@ -3,6 +3,7 @@
 &ANALYZE-SUSPEND _UIB-CODE-BLOCK _CUSTOM _DEFINITIONS Procedure 
 /*------------------------------------------------------------------------
     File        : Curtis
+
     Purpose     :
 
     Syntax      :
