@@ -4,6 +4,7 @@
 /*------------------------------------------------------------------------
     File        :  server/common/j0276.p    
     Purpose     :  Create batch gaugechart printing records in ga-print
+    Curtis
 
     Syntax      :
 
