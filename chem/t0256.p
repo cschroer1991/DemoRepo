@@ -3,7 +3,7 @@
 &ANALYZE-SUSPEND _UIB-CODE-BLOCK _CUSTOM _DEFINITIONS Procedure 
 /*------------------------------------------------------------------------
     File        : chem/t0256.p
-    Purpose     :
+    Purpose     : TESTSETSE
 
     Syntax      : RUN chem/t0256.p ON ON h_green (
                           INPUT pcTestId,
